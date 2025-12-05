@@ -1412,9 +1412,10 @@ df_sim <- df_sim %>%
 df_sim <- df_sim %>%
   mutate(
     j11_probs = case_when(
-      geo_zone == "South" ~ c(0.15, 0.10, 0.08, 0.12, 0.25, 0.30),
-      geo_zone == "Central" ~ c(0.05, 0.08, 0.03, 0.07, 0.35, 0.42),
-      TRUE ~ c(0.02, 0.05, 0.01, 0.04, 0.40, 0.48)
+      # Wrap the vectors in list()
+      geo_zone == "South" ~ list(c(0.15, 0.10, 0.08, 0.12, 0.25, 0.30)),
+      geo_zone == "Central" ~ list(c(0.05, 0.08, 0.03, 0.07, 0.35, 0.42)),
+      TRUE ~ list(c(0.02, 0.05, 0.01, 0.04, 0.40, 0.48))
     )
   ) %>%
   rowwise() %>%
@@ -1424,13 +1425,14 @@ df_sim <- df_sim %>%
   ungroup() %>%
   select(-j11_probs)
 
-# J12: Awareness of fumigation operations
+# J12: Awareness of fumigation operations (Fixing this proactively)
 df_sim <- df_sim %>%
   mutate(
     j12_probs = case_when(
-      geo_zone == "South" ~ c(0.12, 0.15, 0.45, 0.28),
-      geo_zone == "Central" ~ c(0.05, 0.08, 0.55, 0.32),
-      TRUE ~ c(0.02, 0.04, 0.60, 0.34)
+      # Wrap the vectors in list()
+      geo_zone == "South" ~ list(c(0.12, 0.15, 0.45, 0.28)),
+      geo_zone == "Central" ~ list(c(0.05, 0.08, 0.55, 0.32)),
+      TRUE ~ list(c(0.02, 0.04, 0.60, 0.34))
     )
   ) %>%
   rowwise() %>%
