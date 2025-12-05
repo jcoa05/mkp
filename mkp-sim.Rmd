@@ -385,24 +385,25 @@ simulate_ordinal <- function(n, n_levels, base_probs,
   sample(1:n_levels, n, replace = TRUE, prob = probs)
 }
 
-# Function to simulate Likert scale (1-7) responses
+# Redefine the function to support vector multipliers
 simulate_likert7 <- function(n, mean_score = 4, sd_score = 1.5, 
                              multiplier = 1, 
                              higher_is_more = TRUE) {
-  # Generate continuous latent variable
+  
+  # 1. Generate the base scores
   latent <- rnorm(n, mean = mean_score, sd = sd_score)
   
-  # Apply multiplier effect
-  if (multiplier != 1) {
-    shift <- log(multiplier) * 0.8
-    if (higher_is_more) {
-      latent <- latent + shift
-    } else {
-      latent <- latent - shift
-    }
+  # 2. Calculate the shift (vectorized)
+  shift <- log(multiplier) * 0.8
+  
+  # 3. Apply the shift
+  if (higher_is_more) {
+    latent <- latent + shift
+  } else {
+    latent <- latent - shift
   }
   
-  # Discretize to 1-7 scale
+  # 4. Round and clamp to 1-7 range
   response <- round(latent)
   response <- pmax(1, pmin(7, response))
   
@@ -479,12 +480,13 @@ df_sim <- df_sim %>%
 df_sim <- df_sim %>%
   mutate(
     edu_modifier = case_when(
-      A2_age %in% c("18-29", "30-39") ~ c(0.25, 0.15, 0.18, 0.20, 0.22),
-      A2_age %in% c("40-49", "50-59") ~ c(0.38, 0.18, 0.15, 0.14, 0.15),
-      TRUE ~ c(0.55, 0.18, 0.12, 0.08, 0.07)  # 60+
+      # Wrap the vectors in list() to create a list-column
+      A2_age %in% c("18-29", "30-39") ~ list(c(0.25, 0.15, 0.18, 0.20, 0.22)),
+      A2_age %in% c("40-49", "50-59") ~ list(c(0.38, 0.18, 0.15, 0.14, 0.15)),
+      TRUE ~ list(c(0.55, 0.18, 0.12, 0.08, 0.07))  # 60+
     )
   ) %>%
-  rowwise() %>%
+  rowwise() %>% # Now acts on the list-column created above
   mutate(
     A4_education = sample(
       education_props$education,
@@ -545,16 +547,25 @@ df_sim <- df_sim %>%
 df_sim <- df_sim %>%
   rowwise() %>%
   mutate(
-    urban_probs = list(c(
-      prop_urban_dense,
-      0.29,
-      0.19 * (1 - prop_urban_dense/0.38),
-      0.14 * (1 - prop_urban_dense/0.38)
-    )),
+    urban_probs = list({
+      # 1. Calculate the remaining probability available for non-dense categories
+      p_remaining <- 1 - prop_urban_dense
+      
+      # 2. Define the base weights for the other 3 categories from your urban_props
+      # (Intermédiaire: 0.29, Rural Péri: 0.19, Rural Isolé: 0.14)
+      other_weights <- c(0.29, 0.19, 0.14)
+      
+      # 3. Scale these weights so they sum up to p_remaining
+      other_probs <- p_remaining * (other_weights / sum(other_weights))
+      
+      # 4. Combine: [Dense Prob, Scaled Intermédiaire, Scaled Péri, Scaled Isolé]
+      c(prop_urban_dense, other_probs)
+    }),
     urbanization = sample(
       urban_props$urbanization,
       1,
-      prob = urban_probs / sum(urban_probs)
+      # Probabilities are already normalized by logic, but sum() ensures safety
+      prob = urban_probs / sum(urban_probs) 
     )
   ) %>%
   ungroup() %>%
@@ -1282,9 +1293,10 @@ df_sim <- df_sim %>%
 df_sim <- df_sim %>%
   mutate(
     j2_base_prob = case_when(
-      geo_zone == "South" ~ c(0.03, 0.08, 0.82, 0.07),
-      geo_zone == "Central" ~ c(0.01, 0.04, 0.88, 0.07),
-      TRUE ~ c(0.005, 0.02, 0.92, 0.055)
+      # Wrap the vectors in list() so they fit in a single cell
+      geo_zone == "South" ~ list(c(0.03, 0.08, 0.82, 0.07)),
+      geo_zone == "Central" ~ list(c(0.01, 0.04, 0.88, 0.07)),
+      TRUE ~ list(c(0.005, 0.02, 0.92, 0.055))
     )
   ) %>%
   rowwise() %>%
